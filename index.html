@@ -126,28 +126,35 @@
             border-bottom-width: 1px;
         }
 
-        .battle-log {
-            position: absolute;
-            bottom: 20px;
+        /* Всплывающее уведомление */
+        .toast-notification {
+            position: fixed;
+            top: 80px;
             right: 20px;
-            width: 260px;
-            height: 160px;
             background: rgba(0,0,0,0.85);
             border: 2px solid #d4b87a;
             border-radius: 12px;
-            padding: 8px;
-            overflow-y: auto;
-            font-size: 10px;
-            color: #b8e68c;
+            padding: 10px 16px;
+            color: #ffdd99;
             font-family: monospace;
-            z-index: 20;
+            font-size: 13px;
+            font-weight: bold;
+            z-index: 100;
+            animation: slideIn 0.3s ease-out;
             pointer-events: none;
-            backdrop-filter: blur(2px);
+            backdrop-filter: blur(4px);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
         }
 
-        .log-entry {
-            padding: 3px 0;
-            border-bottom: 1px solid #3a3a2a;
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateX(100px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
         }
 
         .damage-pop {
@@ -234,7 +241,7 @@
         <input type="text" id="playerName" placeholder="Имя героя" maxlength="16" value="Sugiru">
         <button class="pixel-btn" style="width:100%; margin-top:8px;" onclick="login()">🎮 ВОЙТИ</button>
         <button class="pixel-btn" style="width:100%; margin-top:8px; background:#3a2a1a;" onclick="guestLogin()">👤 ГОСТЬ</button>
-        <div style="font-size: 10px; text-align: center; margin-top: 12px;">💾 Автосохранение | Пиксельный мир</div>
+        <div style="font-size: 10px; text-align: center; margin-top: 12px;">💾 Автосохранение</div>
     </div>
 </div>
 
@@ -251,11 +258,6 @@
 
     <div class="game-area" id="gameArea">
         <canvas id="gameCanvas"></canvas>
-        <div class="battle-log" id="battleLog">
-            <div class="log-entry">✨ Добро пожаловать в Rucoy Online</div>
-            <div class="log-entry">👆 Клик на клетку — движение</div>
-            <div class="log-entry">⚔️ Клик на монстра — атака</div>
-        </div>
     </div>
 
     <div class="bottom-panel">
@@ -378,6 +380,23 @@
         ctx.fillText(monster.name, px+off+2, py+off-8);
     }
 
+    // ---------- ВСПЛЫВАЮЩИЕ УВЕДОМЛЕНИЯ ----------
+    function showToast(message, isError = false) {
+        const toast = document.createElement('div');
+        toast.className = 'toast-notification';
+        toast.textContent = message;
+        if (isError) {
+            toast.style.borderColor = '#ff8866';
+            toast.style.color = '#ffaa88';
+        }
+        document.body.appendChild(toast);
+        setTimeout(() => {
+            toast.style.opacity = '0';
+            toast.style.transition = 'opacity 0.3s';
+            setTimeout(() => toast.remove(), 300);
+        }, 3000);
+    }
+
     // ---------- ИГРОВЫЕ ДАННЫЕ ----------
     let player = {
         id: null, name: "Sugiru", level: 1, exp: 0, hp: 100, maxHp: 100,
@@ -426,7 +445,6 @@
         return 3.2;
     }
 
-    // ДВИЖЕНИЕ К ЦЕЛИ - теперь тихое, без сообщений
     function moveToTarget() {
         if (!player.moving) return;
         let dx = player.targetX - player.x, dy = player.targetY - player.y;
@@ -441,7 +459,6 @@
             player.x = nx;
             player.y = ny;
         } else {
-            // Если не можем пройти - останавливаем движение
             player.moving = false;
         }
     }
@@ -449,7 +466,7 @@
     function attackMonster(mon) {
         let dist = Math.abs(player.x - mon.x) + Math.abs(player.y - mon.y);
         if (dist > attackRange()) { 
-            addLog(`❌ Слишком далеко от ${mon.name}`); 
+            showToast(`❌ Слишком далеко от ${mon.name}`, true);
             return false; 
         }
         let dmg = getDamageBonus();
@@ -458,10 +475,9 @@
         let final = Math.max(1, dmg - mon.def);
         mon.hp -= final;
         showDamage(mon.x*TILE+TILE/2, mon.y*TILE+20, final, crit);
-        addLog(`⚔️ ${final} урона ${mon.name}${crit ? ' [КРИТ]' : ''}`);
         
         if (mon.hp <= 0) {
-            addLog(`🎉 +${mon.exp} EXP, +${mon.gold}💰`);
+            showToast(`🎉 +${mon.exp} EXP, +${mon.gold}💰`);
             player.exp += mon.exp;
             player.gold += mon.gold;
             if (player.class === "sword") player.skillSword = Math.min(100, player.skillSword+1);
@@ -480,11 +496,11 @@
         let finalMDmg = Math.max(1, mDmg - getDefense());
         player.hp -= finalMDmg;
         showDamage(player.x*TILE+TILE/2, player.y*TILE+20, finalMDmg, false, true);
-        addLog(`😈 ${mon.name} наносит ${finalMDmg} урона`);
+        showToast(`😈 ${mon.name} наносит ${finalMDmg} урона`, true);
         
         if (player.hp <= 0) {
             player.hp = 0;
-            addLog(`💀 ВЫ ПАЛИ! -50💰`);
+            showToast(`💀 ВЫ ПАЛИ! -50💰`, true);
             player.gold = Math.max(0, player.gold-50);
             player.hp = player.maxHp;
             player.x = 10; player.y = 7; 
@@ -496,11 +512,17 @@
     }
 
     function heal() {
-        if (player.gold < 50) { addLog("❌ Нужно 50 золота"); return; }
-        if (player.hp >= player.maxHp) { addLog("❤️ Здоровье полное"); return; }
+        if (player.gold < 50) { 
+            showToast(`❌ Нужно 50 золота`, true);
+            return; 
+        }
+        if (player.hp >= player.maxHp) { 
+            showToast(`❤️ Здоровье полное`);
+            return; 
+        }
         player.gold -= 50;
         player.hp = player.maxHp;
-        addLog("💊 Здоровье восстановлено!");
+        showToast(`💊 Здоровье восстановлено!`);
         updateUI(); 
         saveGame();
     }
@@ -515,7 +537,7 @@
             player.dmgMin += 5;
             player.dmgMax += 5;
             player.defense += 3;
-            addLog(`✨✨✨ УРОВЕНЬ ${player.level}! ✨✨✨`);
+            showToast(`✨✨✨ УРОВЕНЬ ${player.level}! ✨✨✨`);
             need = player.level * 100;
         }
         updateUI();
@@ -534,7 +556,7 @@
         monsters.push({ ...t, id: Date.now()+Math.random(), hp: t.hp, maxHp: t.hp, x, y });
     }
 
-    // ---------- ОБРАБОТКА КЛИКОВ (ТИХОЕ ДВИЖЕНИЕ) ----------
+    // ---------- ОБРАБОТКА КЛИКОВ ----------
     function handleCanvasClick(e) {
         const rect = canvas.getBoundingClientRect();
         let cx, cy;
@@ -554,7 +576,6 @@
         
         if (tx < 0 || tx >= MAP_W || ty < 0 || ty >= MAP_H) return;
         
-        // Проверяем, есть ли монстр на этой клетке
         let monsterHere = monsters.find(m => m.x === tx && m.y === ty);
         if (monsterHere) { 
             attackMonster(monsterHere); 
@@ -562,13 +583,11 @@
             return; 
         }
         
-        // Движение: если клетка проходима - идем туда
         if (canWalk(tx, ty)) {
             player.targetX = tx;
             player.targetY = ty;
             player.moving = true;
         }
-        // НЕТ сообщений "Нельзя пройти"
         drawGame();
     }
 
@@ -582,16 +601,6 @@
         div.style.top = (y-20)+'px';
         document.getElementById('gameArea').appendChild(div);
         setTimeout(()=>div.remove(),700);
-    }
-
-    function addLog(msg) {
-        let logDiv = document.getElementById('battleLog');
-        let entry = document.createElement('div');
-        entry.className = 'log-entry';
-        entry.innerText = msg;
-        logDiv.appendChild(entry);
-        logDiv.scrollTop = logDiv.scrollHeight;
-        while(logDiv.children.length > 55) logDiv.removeChild(logDiv.firstChild);
     }
 
     // ---------- ОТРИСОВКА ----------
@@ -660,7 +669,7 @@
             Object.assign(player, data.player);
             monsters = data.monsters.map(m => ({ ...m, hp: m.hp, maxHp: m.maxHp }));
             updateUI();
-            addLog(`💾 Загружен прогресс: ${player.name}, уровень ${player.level}`);
+            showToast(`💾 Загружен прогресс: ${player.name}, уровень ${player.level}`);
             return true;
         } catch(e) { return false; }
     }
@@ -672,7 +681,7 @@
         if(c === 'sword') document.getElementById('btnSword').classList.add('active');
         if(c === 'bow') document.getElementById('btnBow').classList.add('active');
         if(c === 'staff') document.getElementById('btnStaff').classList.add('active');
-        addLog(`⚔️ Класс сменён на ${c === 'sword' ? 'МЕЧНИК' : c === 'bow' ? 'ЛУЧНИК' : 'МАГ'}`);
+        showToast(`⚔️ Класс сменён на ${c === 'sword' ? 'МЕЧНИК' : c === 'bow' ? 'ЛУЧНИК' : 'МАГ'}`);
         saveGame();
         drawGame();
     }
@@ -682,7 +691,7 @@
         let btn = document.getElementById('pvpBtn');
         btn.style.background = player.pvpMode ? "#aa5533" : "#2a2418";
         btn.innerText = player.pvpMode ? "🔴 PVP ВКЛ" : "⚔️ PVP";
-        addLog(player.pvpMode ? "🔴 PVP РЕЖИМ ВКЛЮЧЕН" : "⚪ PVP РЕЖИМ ВЫКЛЮЧЕН");
+        showToast(player.pvpMode ? "🔴 PVP РЕЖИМ ВКЛЮЧЕН" : "⚪ PVP РЕЖИМ ВЫКЛЮЧЕН");
         saveGame();
     }
 
@@ -739,7 +748,7 @@
         window.addEventListener('beforeunload', ()=>saveGame());
         gameLoop();
         updateUI();
-        addLog(`📊 Уровень ${player.level}, опыт ${player.exp}/${player.level*100}`);
+        showToast(`📊 Уровень ${player.level}, опыт ${player.exp}/${player.level*100}`);
     }
 
     function login() {
@@ -748,7 +757,7 @@
         player.name = name;
         player.id = name.toLowerCase().replace(/[^a-z0-9]/g,'_');
         if (!loadGame(player.id)) {
-            addLog(`✨ Добро пожаловать, ${player.name}!`);
+            showToast(`✨ Добро пожаловать, ${player.name}!`);
             for(let i = 0; i < 4; i++) spawnMonster();
         }
         document.getElementById('loginModal').style.display = 'none';
@@ -759,7 +768,7 @@
     function guestLogin() {
         player.name = "Гость_" + Math.floor(Math.random()*9999);
         player.id = "guest_"+Date.now();
-        addLog(`👤 Игра как гость: ${player.name}`);
+        showToast(`👤 Игра как гость: ${player.name}`);
         document.getElementById('loginModal').style.display = 'none';
         document.getElementById('gameWrapper').style.display = 'block';
         startGame();
