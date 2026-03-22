@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Rucoy Online — Пиксельная RPG</title>
+    <title>Rucoy Online — Пиксельная MMORPG</title>
     <style>
         * {
             margin: 0;
@@ -37,36 +37,23 @@
             align-items: center;
             border-bottom: 3px solid #d4b87a;
             flex-shrink: 0;
+            z-index: 10;
         }
 
         .player-stats {
             display: flex;
-            gap: 25px;
+            gap: 20px;
             background: #2a2418;
             padding: 6px 24px;
             border-radius: 30px;
         }
-        .player-name { color: #ffdd99; font-weight: bold; font-size: 18px; }
-        .player-level { color: #ffaa66; font-size: 16px; }
-        .player-hp { color: #88ff88; font-size: 16px; }
-        .player-dmg { color: #ffaa66; font-size: 16px; }
-        .player-def { color: #88aaff; font-size: 16px; }
-        .player-gold { color: #ffdd88; font-size: 16px; }
-
-        .save-status {
-            background: #2a5a2a;
-            padding: 4px 16px;
-            border-radius: 20px;
-            font-size: 12px;
-            color: #ccffaa;
+        .player-stats div {
+            color: #ffdd99;
+            font-size: 14px;
+            font-weight: bold;
         }
-
-        .settings-btn {
-            background: #3a2a2a;
-            padding: 8px 16px;
-            border-radius: 30px;
-            cursor: pointer;
-            font-size: 20px;
+        .player-stats span {
+            color: #ffaa66;
         }
 
         .game-area {
@@ -104,32 +91,35 @@
             padding: 10px 24px;
             font-family: monospace;
             font-weight: bold;
-            font-size: 16px;
+            font-size: 14px;
             color: #e6d5a8;
             cursor: pointer;
             border-bottom: 3px solid #7a5a3a;
             border-radius: 12px;
+            transition: 0.05s linear;
         }
         .pixel-btn.active {
             background: #5a4a2a;
             border-bottom-color: #ffcc66;
             color: #ffdd99;
+            box-shadow: 0 0 8px #ffaa66;
         }
         .pixel-btn:active { transform: translateY(2px); }
 
         .toast {
             position: fixed;
-            top: 80px;
+            top: 90px;
             right: 20px;
             background: rgba(0,0,0,0.9);
             border: 2px solid #d4b87a;
             border-radius: 12px;
             padding: 10px 20px;
             color: #ffdd99;
-            font-size: 14px;
-            z-index: 100;
+            font-size: 13px;
+            z-index: 200;
             animation: slideIn 0.3s ease-out;
             pointer-events: none;
+            backdrop-filter: blur(4px);
         }
         @keyframes slideIn {
             from { opacity: 0; transform: translateX(100px); }
@@ -141,14 +131,29 @@
             font-weight: bold;
             font-size: 20px;
             font-family: monospace;
-            text-shadow: 1px 1px 0 black;
+            text-shadow: 2px 2px 0 black;
             pointer-events: none;
-            z-index: 25;
-            animation: floatUp 0.6s ease-out forwards;
+            z-index: 50;
+            animation: floatUp 0.7s ease-out forwards;
         }
         @keyframes floatUp {
-            0% { opacity: 1; transform: translateY(0); }
-            100% { opacity: 0; transform: translateY(-45px); }
+            0% { opacity: 1; transform: translateY(0) scale(1); }
+            100% { opacity: 0; transform: translateY(-50px) scale(1.2); }
+        }
+
+        .blood-effect {
+            position: absolute;
+            width: 30px;
+            height: 30px;
+            background: radial-gradient(circle, #ff4444, #aa2222);
+            border-radius: 50%;
+            pointer-events: none;
+            z-index: 40;
+            animation: bloodSplat 0.4s ease-out forwards;
+        }
+        @keyframes bloodSplat {
+            0% { transform: scale(0.5); opacity: 1; }
+            100% { transform: scale(1.5); opacity: 0; }
         }
 
         .modal {
@@ -161,20 +166,19 @@
             background: rgba(0,0,0,0.95);
             justify-content: center;
             align-items: center;
-            z-index: 200;
+            z-index: 300;
         }
         .modal-card {
             background: #2a2418;
             border: 3px solid #d4b87a;
             padding: 24px;
-            max-width: 400px;
+            max-width: 380px;
             width: 90%;
             border-radius: 20px;
             color: #ffdd99;
-            max-height: 80vh;
-            overflow-y: auto;
+            text-align: center;
         }
-        .modal-title { font-size: 24px; text-align: center; margin-bottom: 20px; color: #ffcc66; }
+        .modal-title { font-size: 24px; margin-bottom: 20px; color: #ffcc66; }
         .close-btn {
             background: #3a2a1a;
             padding: 12px;
@@ -182,14 +186,6 @@
             margin-top: 16px;
             cursor: pointer;
             border-radius: 30px;
-        }
-        .stat-row {
-            display: flex;
-            justify-content: space-between;
-            padding: 8px;
-            background: #1e1a12;
-            margin: 5px 0;
-            border-radius: 8px;
         }
         input {
             background: #0a0a0a;
@@ -203,6 +199,14 @@
             text-align: center;
             border-radius: 12px;
         }
+        .stat-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px;
+            background: #1e1a12;
+            margin: 5px 0;
+            border-radius: 8px;
+        }
     </style>
 </head>
 <body>
@@ -212,24 +216,21 @@
         <input type="text" id="playerName" placeholder="Имя героя" maxlength="16" value="Suguru">
         <button class="pixel-btn" style="width:100%; margin-top:10px;" onclick="login()">🎮 ВОЙТИ</button>
         <button class="pixel-btn" style="width:100%; margin-top:8px; background:#3a2a1a;" onclick="guestLogin()">👤 ГОСТЬ</button>
-        <div style="font-size: 11px; text-align: center; margin-top: 12px;">💾 Автосохранение</div>
+        <div style="font-size: 11px; margin-top: 12px;">💾 Автосохранение | Пиксельный мир</div>
     </div>
 </div>
 
 <div class="game-fullscreen" style="display: none;" id="gameContainer">
     <div class="top-bar">
         <div class="player-stats">
-            <span class="player-name" id="playerNameDisplay">Suguru</span>
-            <span class="player-level" id="playerLevelDisplay">Lv.1</span>
-            <span class="player-hp" id="playerHpDisplay">❤️ 100/100</span>
-            <span class="player-dmg" id="playerDmgDisplay">⚔️ 25-35</span>
-            <span class="player-def" id="playerDefDisplay">🛡️ 15</span>
-            <span class="player-gold" id="playerGoldDisplay">💰 520</span>
+            <div>👑 <span id="playerNameDisplay">Suguru</span></div>
+            <div>✨ Lv.<span id="playerLevelDisplay">1</span></div>
+            <div>❤️ <span id="playerHpDisplay">100/100</span></div>
+            <div>⚔️ <span id="playerDmgDisplay">25-35</span></div>
+            <div>🛡️ <span id="playerDefDisplay">15</span></div>
+            <div>💰 <span id="playerGoldDisplay">520</span></div>
         </div>
-        <div style="display: flex; gap: 12px;">
-            <div class="settings-btn" id="settingsBtn">⚙️</div>
-            <div class="save-status" id="saveStatus">💾 Сохранено</div>
-        </div>
+        <div class="save-status" id="saveStatus">💾 Сохранено</div>
     </div>
 
     <div class="game-area" id="gameArea">
@@ -251,7 +252,7 @@
 
 <div id="settingsModal" class="modal">
     <div class="modal-card">
-        <div class="modal-title">⚙️ СТАТИСТИКА & ИНВЕНТАРЬ</div>
+        <div class="modal-title">⚙️ СТАТИСТИКА</div>
         <div id="settingsContent"></div>
         <div class="close-btn" onclick="closeSettings()">ЗАКРЫТЬ</div>
     </div>
@@ -268,54 +269,77 @@
     let MAP_H = 19;
     let cameraX = 0, cameraY = 0;
     let mapTiles = [];
-    let playerDir = 0; // 0-вниз,1-влево,2-вправо,3-вверх
+    let playerDir = 0;
     let attackTimer = null;
     let currentTarget = null;
     let highlightX = null, highlightY = null;
+    let lastFrameTime = 0;
     
-    let heroColors = {
-        armor: "#6e8e5a",
-        pants: "#6a5a3a",
-        skin: "#f5d4a4",
-        hair: "#3a2a1a"
+    // ========== ИГРОК ==========
+    let player = {
+        id: null, name: "Suguru", level: 1, exp: 0, hp: 100, maxHp: 100,
+        dmgMin: 25, dmgMax: 35, defense: 15, gold: 520,
+        x: 12, y: 9, targetX: 12, targetY: 9, moving: false,
+        skillSword: 1, skillBow: 1, skillStaff: 1, skillDefense: 1,
+        class: "sword"
     };
     
-    // ========== РЫЦАРЬ, МАГ, ЛУЧНИК - КРАСИВЫЕ ПИКСЕЛЬНЫЕ ГЕРОИ ==========
+    let monsters = [];
+    let nextMonsterId = 1;
+    let monsterAttackTimers = new Map();
+    
+    // ========== МОНСТРЫ ==========
+    const monsterTypes = [
+        { name: "🐀 КРЫСА", lvl:1, hp:55, dmgMin:7, dmgMax:14, exp:15, gold:18, def:2, color:"#8e6a4a", speed:0.22 },
+        { name: "🐺 ВОЛК", lvl:2, hp:85, dmgMin:11, dmgMax:21, exp:28, gold:32, def:4, color:"#6a6a5a", speed:0.28 },
+        { name: "🧟 ЗОМБИ", lvl:3, hp:120, dmgMin:15, dmgMax:28, exp:45, gold:55, def:7, color:"#6a7a4a", speed:0.18 },
+        { name: "👹 ОРК", lvl:4, hp:170, dmgMin:20, dmgMax:38, exp:70, gold:85, def:10, color:"#7a5a3a", speed:0.24 },
+        { name: "🐉 ДРАКОН", lvl:5, hp:250, dmgMin:28, dmgMax:52, exp:110, gold:130, def:14, color:"#9a5a3a", speed:0.20 }
+    ];
+    
+    // ========== ОТРИСОВКА ==========
+    function drawTile(x, y, type) {
+        const px = x * TILE;
+        const py = y * TILE;
+        if (type === 0) {
+            ctx.fillStyle = "#3f7840";
+            ctx.fillRect(px, py, TILE, TILE);
+            ctx.fillStyle = "#2a572a";
+            for (let i = 0; i < 2; i++) ctx.fillRect(px + 10 + i*14, py + 14, 5, 5);
+            ctx.fillStyle = "#5f9e4a";
+            for (let i = 0; i < 2; i++) ctx.fillRect(px + 14 + i*14, py + 28, 4, 4);
+        } else if (type === 2) {
+            ctx.fillStyle = "#5e4a2a";
+            ctx.fillRect(px, py, TILE, TILE);
+            ctx.fillStyle = "#3a2a1a";
+            ctx.fillRect(px+10, py+10, 28, 28);
+        } else {
+            ctx.fillStyle = "#5a5a5a";
+            ctx.fillRect(px, py, TILE, TILE);
+        }
+        ctx.strokeStyle = "#2e2e1e";
+        ctx.strokeRect(px, py, TILE, TILE);
+    }
+    
     function drawHero(x, y, dir, className, isMoving) {
         const px = x * TILE;
         const py = y * TILE;
         const offX = (TILE - 36) / 2;
         const offY = (TILE - 36) / 2;
         
-        // Броня/плащ в зависимости от класса
-        if (className === "sword") {
-            ctx.fillStyle = heroColors.armor;
-            ctx.fillRect(px+offX+8, py+offY+16, 20, 16);
-            // Наплечники рыцаря
-            ctx.fillStyle = "#aa8866";
-            ctx.fillRect(px+offX+6, py+offY+14, 4, 8);
-            ctx.fillRect(px+offX+26, py+offY+14, 4, 8);
-        } else if (className === "bow") {
-            ctx.fillStyle = "#8aae6a";
-            ctx.fillRect(px+offX+8, py+offY+16, 20, 16);
-            // Кожаная броня лучника
-            ctx.fillStyle = "#ba9a6a";
-            ctx.fillRect(px+offX+8, py+offY+18, 20, 12);
-        } else {
-            ctx.fillStyle = "#6a8aae";
-            ctx.fillRect(px+offX+8, py+offY+16, 20, 16);
-            // Мантия мага
-            ctx.fillStyle = "#8a6aae";
-            ctx.fillRect(px+offX+6, py+offY+14, 24, 20);
-        }
+        // Броня по классу
+        if (className === "sword") ctx.fillStyle = "#6e8e5a";
+        else if (className === "bow") ctx.fillStyle = "#8aae6a";
+        else ctx.fillStyle = "#6a8aae";
+        ctx.fillRect(px+offX+8, py+offY+16, 20, 16);
         
         // Штаны
-        ctx.fillStyle = heroColors.pants;
+        ctx.fillStyle = "#6a5a3a";
         ctx.fillRect(px+offX+10, py+offY+32, 7, 8);
         ctx.fillRect(px+offX+19, py+offY+32, 7, 8);
         
         // Голова
-        ctx.fillStyle = heroColors.skin;
+        ctx.fillStyle = "#f5d4a4";
         ctx.fillRect(px+offX+12, py+offY+4, 12, 14);
         
         // Глаза
@@ -334,41 +358,24 @@
             ctx.fillRect(px+offX+19, py+offY+8, 3, 3);
         }
         
-        // Волосы/шлем
-        ctx.fillStyle = heroColors.hair;
+        // Волосы
+        ctx.fillStyle = "#3a2a1a";
         ctx.fillRect(px+offX+11, py+offY+2, 14, 6);
         
-        // Шлем для рыцаря
-        if (className === "sword") {
-            ctx.fillStyle = "#aa8866";
-            ctx.fillRect(px+offX+10, py+offY+0, 16, 6);
-        }
-        
         // Оружие
+        ctx.fillStyle = "#c9b06a";
         if (className === "sword") {
-            ctx.fillStyle = "#c9b06a";
             ctx.fillRect(px+offX+28, py+offY+22, 8, 4);
             ctx.fillRect(px+offX+32, py+offY+20, 3, 12);
-            // Меч
-            ctx.fillStyle = "#ddcc99";
-            ctx.fillRect(px+offX+33, py+offY+18, 2, 16);
         } else if (className === "bow") {
-            ctx.fillStyle = "#b89a6a";
             ctx.fillRect(px+offX+26, py+offY+26, 12, 3);
             ctx.fillRect(px+offX+30, py+offY+22, 3, 10);
-            // Лук
-            ctx.fillStyle = "#ccaa77";
-            ctx.fillRect(px+offX+24, py+offY+24, 14, 3);
         } else {
             ctx.fillStyle = "#aa88ff";
             ctx.fillRect(px+offX+26, py+offY+22, 10, 6);
             for(let i=0;i<4;i++) ctx.fillRect(px+offX+28+i*2, py+offY+16, 2, 8);
-            // Посох
-            ctx.fillStyle = "#ddbb99";
-            ctx.fillRect(px+offX+32, py+offY+14, 3, 18);
         }
         
-        // Анимация ног
         if (isMoving && (Date.now() % 400 < 200)) {
             ctx.fillStyle = "#ba9a6a";
             ctx.fillRect(px+offX+10, py+offY+38, 7, 5);
@@ -401,13 +408,14 @@
         ctx.fillRect(px+4, py-10, (TILE-8) * percent, 6);
         
         ctx.fillStyle = "#ffaa66";
-        ctx.font = "bold 11px monospace";
+        ctx.font = "bold 10px monospace";
         ctx.fillText(`Lv.${monster.lvl}`, px+6, py-2);
         ctx.fillStyle = "#ffcc88";
-        ctx.font = "10px monospace";
+        ctx.font = "9px monospace";
         ctx.fillText(monster.name, px+5, py+38);
     }
     
+    // ========== ИГРОВАЯ ЛОГИКА ==========
     function generateMap() {
         for (let y = 0; y < MAP_H; y++) {
             mapTiles[y] = [];
@@ -418,50 +426,6 @@
             }
         }
     }
-    
-    function drawTile(x, y, type) {
-        const px = x * TILE;
-        const py = y * TILE;
-        if (type === 0) {
-            ctx.fillStyle = "#3f7840";
-            ctx.fillRect(px, py, TILE, TILE);
-            ctx.fillStyle = "#2a572a";
-            for (let i = 0; i < 2; i++) ctx.fillRect(px + 10 + i*14, py + 14, 5, 5);
-            ctx.fillStyle = "#5f9e4a";
-            for (let i = 0; i < 2; i++) ctx.fillRect(px + 14 + i*14, py + 28, 4, 4);
-        } else if (type === 2) {
-            ctx.fillStyle = "#5e4a2a";
-            ctx.fillRect(px, py, TILE, TILE);
-            ctx.fillStyle = "#3a2a1a";
-            ctx.fillRect(px+10, py+10, 28, 28);
-        } else {
-            ctx.fillStyle = "#5a5a5a";
-            ctx.fillRect(px, py, TILE, TILE);
-        }
-        ctx.strokeStyle = "#2e2e1e";
-        ctx.strokeRect(px, py, TILE, TILE);
-    }
-    
-    // ========== ИГРОВАЯ ЛОГИКА ==========
-    let player = {
-        id: null, name: "Suguru", level: 1, exp: 0, hp: 100, maxHp: 100,
-        dmgMin: 25, dmgMax: 35, defense: 15, gold: 520,
-        x: 12, y: 9, targetX: 12, targetY: 9, moving: false,
-        skillSword: 1, skillBow: 1, skillStaff: 1, skillDefense: 1,
-        class: "sword"
-    };
-    
-    let monsters = [];
-    let nextMonsterId = 1;
-    let monsterAttackTimers = new Map();
-    
-    const monsterTypes = [
-        { name: "🐀 КРЫСА", lvl:1, hp:55, dmgMin:8, dmgMax:15, exp:15, gold:18, def:2, color:"#8e6a4a", speed: 0.25 },
-        { name: "🐺 ВОЛК", lvl:2, hp:85, dmgMin:12, dmgMax:22, exp:28, gold:32, def:4, color:"#6a6a5a", speed: 0.3 },
-        { name: "🧟 ЗОМБИ", lvl:3, hp:120, dmgMin:16, dmgMax:30, exp:45, gold:55, def:7, color:"#6a7a4a", speed: 0.2 },
-        { name: "👹 ОРК", lvl:4, hp:170, dmgMin:22, dmgMax:40, exp:70, gold:85, def:10, color:"#7a5a3a", speed: 0.28 },
-        { name: "🐉 ДРАКОН", lvl:5, hp:250, dmgMin:30, dmgMax:55, exp:110, gold:130, def:14, color:"#9a5a3a", speed: 0.22 }
-    ];
     
     function canWalk(tx, ty) {
         if (tx < 0 || ty < 0 || tx >= MAP_W || ty >= MAP_H) return false;
@@ -487,16 +451,57 @@
         return 4.5;
     }
     
-    // Монстры медленно двигаются к игроку если он в радиусе 3 блоков
+    function showDamage(x, y, dmg, crit, isMonster=false) {
+        let div = document.createElement('div');
+        div.className = 'damage-number';
+        div.textContent = crit ? `💥 ${dmg}!` : `-${dmg}`;
+        if (crit) div.style.color = '#ffaa44';
+        if (isMonster) div.style.color = '#ff8866';
+        div.style.left = (x-20)+'px';
+        div.style.top = (y-25)+'px';
+        document.getElementById('gameArea').appendChild(div);
+        setTimeout(()=>div.remove(),700);
+        
+        // Эффект крови
+        let blood = document.createElement('div');
+        blood.className = 'blood-effect';
+        blood.style.left = (x-15)+'px';
+        blood.style.top = (y-15)+'px';
+        document.getElementById('gameArea').appendChild(blood);
+        setTimeout(()=>blood.remove(),400);
+    }
+    
+    function showToast(msg, isError=false) {
+        let toast = document.createElement('div');
+        toast.className = 'toast';
+        toast.textContent = msg;
+        if (isError) toast.style.borderColor = '#ff8866';
+        document.body.appendChild(toast);
+        setTimeout(() => toast.remove(), 2500);
+    }
+    
+    function spawnMonster() {
+        if (monsters.length >= 10) return;
+        let lvlRange = Math.min(5, player.level + 2);
+        let possible = monsterTypes.filter(m => m.lvl <= lvlRange);
+        if (possible.length === 0) possible = monsterTypes;
+        let t = possible[Math.floor(Math.random()*possible.length)];
+        let x, y;
+        do {
+            x = 1 + Math.floor(Math.random()*(MAP_W-2));
+            y = 1 + Math.floor(Math.random()*(MAP_H-2));
+        } while (!canWalk(x,y) || (Math.abs(x-player.x)+Math.abs(y-player.y) < 2));
+        monsters.push({ ...t, id: nextMonsterId++, hp: t.hp, maxHp: t.hp, x, y });
+    }
+    
     function moveMonsters() {
         for (let m of monsters) {
             let dx = player.x - m.x;
             let dy = player.y - m.y;
             let dist = Math.abs(dx) + Math.abs(dy);
             
-            // Агро на расстоянии 3 блока
-            if (dist <= 3 && dist > 0.5) {
-                let moveSpeed = m.speed || 0.2;
+            if (dist <= 3.5 && dist > 0.5) {
+                let moveSpeed = m.speed || 0.18;
                 let nx = m.x, ny = m.y;
                 
                 if (Math.abs(dx) > Math.abs(dy)) {
@@ -516,7 +521,6 @@
         }
     }
     
-    // Монстры атакуют раз в 1.5 секунды
     function startMonsterAttack(monster) {
         if (monsterAttackTimers.has(monster.id)) return;
         
@@ -549,7 +553,6 @@
         monsterAttackTimers.set(monster.id, timer);
     }
     
-    // Автоатака игрока по выбранной цели
     function startAutoAttack(monster) {
         if (attackTimer) clearInterval(attackTimer);
         currentTarget = monster;
@@ -633,21 +636,6 @@
         saveGame();
     }
     
-    function spawnMonster() {
-        if (monsters.length >= 12) return;
-        let lvlRange = Math.min(5, player.level + 2);
-        let possible = monsterTypes.filter(m => m.lvl <= lvlRange);
-        if (possible.length === 0) possible = monsterTypes;
-        let t = possible[Math.floor(Math.random()*possible.length)];
-        let x, y;
-        do {
-            x = 1 + Math.floor(Math.random()*(MAP_W-2));
-            y = 1 + Math.floor(Math.random()*(MAP_H-2));
-        } while (!canWalk(x,y) || (Math.abs(x-player.x)+Math.abs(y-player.y) < 2));
-        monsters.push({ ...t, id: nextMonsterId++, hp: t.hp, maxHp: t.hp, x, y });
-    }
-    
-    // Плавное движение по клеткам с подсветкой
     function moveToTarget() {
         if (!player.moving) return;
         let dx = player.targetX - player.x;
@@ -661,7 +649,7 @@
             return;
         }
         
-        let step = Math.min(0.12, dist);
+        let step = Math.min(0.1, dist);
         let angle = Math.atan2(dy, dx);
         let newX = player.x + Math.cos(angle) * step;
         let newY = player.y + Math.sin(angle) * step;
@@ -697,7 +685,6 @@
         
         if (tx < 0 || tx >= MAP_W || ty < 0 || ty >= MAP_H) return;
         
-        // Подсветка клетки
         highlightX = tx;
         highlightY = ty;
         
@@ -723,57 +710,13 @@
         drawGame();
     }
     
-    function showDamage(x, y, dmg, crit, isMonster=false) {
-        let div = document.createElement('div');
-        div.className = 'damage-number';
-        div.textContent = `-${dmg}`;
-        if (crit) div.style.color = '#ffaa44';
-        if (isMonster) div.style.color = '#ff8866';
-        div.style.left = (x-20)+'px';
-        div.style.top = (y-25)+'px';
-        document.getElementById('gameArea').appendChild(div);
-        setTimeout(()=>div.remove(),600);
-    }
-    
-    function showToast(msg, isError=false) {
-        let toast = document.createElement('div');
-        toast.className = 'toast';
-        toast.textContent = msg;
-        if (isError) toast.style.borderColor = '#ff8866';
-        document.body.appendChild(toast);
-        setTimeout(() => { toast.remove(); }, 2500);
-    }
-    
     function updateUI() {
         document.getElementById('playerNameDisplay').innerText = player.name;
-        document.getElementById('playerLevelDisplay').innerText = `Lv.${player.level}`;
-        document.getElementById('playerHpDisplay').innerHTML = `❤️ ${Math.ceil(player.hp)}/${player.maxHp}`;
-        document.getElementById('playerDmgDisplay').innerHTML = `⚔️ ${player.dmgMin}-${player.dmgMax}`;
-        document.getElementById('playerDefDisplay').innerHTML = `🛡️ ${getDefense()}`;
-        document.getElementById('playerGoldDisplay').innerHTML = `💰 ${player.gold}`;
-    }
-    
-    function openSettings() {
-        let content = document.getElementById('settingsContent');
-        content.innerHTML = `
-            <div class="modal-title" style="font-size: 18px;">📊 СТАТИСТИКА</div>
-            <div class="stat-row"><span>👤 Имя:</span><span>${player.name}</span></div>
-            <div class="stat-row"><span>✨ Уровень:</span><span>${player.level}</span></div>
-            <div class="stat-row"><span>❤️ HP:</span><span>${Math.ceil(player.hp)}/${player.maxHp}</span></div>
-            <div class="stat-row"><span>⚔️ Урон:</span><span>${player.dmgMin}-${player.dmgMax}</span></div>
-            <div class="stat-row"><span>🛡️ Защита:</span><span>${getDefense()}</span></div>
-            <div class="stat-row"><span>💰 Золото:</span><span>${player.gold}</span></div>
-            <div class="modal-title" style="font-size: 18px; margin-top: 16px;">🎒 ИНВЕНТАРЬ</div>
-            <div class="stat-row"><span>⚔️ Мечник:</span><span>${player.skillSword} ур. (+${Math.floor((player.skillSword-1)*5)}%)</span></div>
-            <div class="stat-row"><span>🏹 Лучник:</span><span>${player.skillBow} ур. (+${Math.floor((player.skillBow-1)*5)}%)</span></div>
-            <div class="stat-row"><span>🔮 Маг:</span><span>${player.skillStaff} ур. (+${Math.floor((player.skillStaff-1)*5)}%)</span></div>
-            <div class="stat-row"><span>🛡️ Защита:</span><span>${player.skillDefense} ур. (+${Math.floor((player.skillDefense-1)*3)}%)</span></div>
-        `;
-        document.getElementById('settingsModal').style.display = 'flex';
-    }
-    
-    function closeSettings() {
-        document.getElementById('settingsModal').style.display = 'none';
+        document.getElementById('playerLevelDisplay').innerText = player.level;
+        document.getElementById('playerHpDisplay').innerText = `${Math.ceil(player.hp)}/${player.maxHp}`;
+        document.getElementById('playerDmgDisplay').innerText = `${player.dmgMin}-${player.dmgMax}`;
+        document.getElementById('playerDefDisplay').innerText = getDefense();
+        document.getElementById('playerGoldDisplay').innerText = player.gold;
     }
     
     function drawGame() {
@@ -801,16 +744,15 @@
             }
         }
         
-        // Подсветка выбранной клетки
         if (highlightX !== null && highlightY !== null && canWalk(highlightX, highlightY)) {
             let sx = highlightX - startX;
             let sy = highlightY - startY;
             if (sx >= 0 && sx < viewW && sy >= 0 && sy < viewH) {
-                ctx.fillStyle = "rgba(255, 215, 0, 0.4)";
+                ctx.fillStyle = "rgba(255, 215, 0, 0.35)";
                 ctx.fillRect(sx*TILE, sy*TILE, TILE, TILE);
                 ctx.strokeStyle = "#ffdd88";
                 ctx.lineWidth = 2;
-                ctx.strokeRect(sx*TILE+2, sy*TILE+2, TILE-4, TILE-4);
+                ctx.strokeRect(sx*TILE+3, sy*TILE+3, TILE-6, TILE-6);
             }
         }
         
@@ -853,8 +795,7 @@
             player: {
                 name: player.name, level: player.level, exp: player.exp,
                 hp: player.hp, maxHp: player.maxHp, dmgMin: player.dmgMin, dmgMax: player.dmgMax,
-                defense: player.defense, gold: player.gold,
-                x: player.x, y: player.y,
+                defense: player.defense, gold: player.gold, x: player.x, y: player.y,
                 skillSword: player.skillSword, skillBow: player.skillBow,
                 skillStaff: player.skillStaff, skillDefense: player.skillDefense, class: player.class
             },
@@ -889,28 +830,43 @@
         if(c === 'staff') document.getElementById('btnStaff').classList.add('active');
         showToast(`⚔️ Класс сменён на ${c === 'sword' ? 'РЫЦАРЬ' : c === 'bow' ? 'ЛУЧНИК' : 'МАГ'}`);
         saveGame();
-        drawGame();
+    }
+    
+    function openSettings() {
+        let content = document.getElementById('settingsContent');
+        content.innerHTML = `
+            <div class="stat-row"><span>👤 Имя:</span><span>${player.name}</span></div>
+            <div class="stat-row"><span>✨ Уровень:</span><span>${player.level}</span></div>
+            <div class="stat-row"><span>❤️ HP:</span><span>${Math.ceil(player.hp)}/${player.maxHp}</span></div>
+            <div class="stat-row"><span>⚔️ Урон:</span><span>${player.dmgMin}-${player.dmgMax}</span></div>
+            <div class="stat-row"><span>🛡️ Защита:</span><span>${getDefense()}</span></div>
+            <div class="stat-row"><span>💰 Золото:</span><span>${player.gold}</span></div>
+            <div class="stat-row"><span>⚔️ Мечник:</span><span>${player.skillSword} ур.</span></div>
+            <div class="stat-row"><span>🏹 Лучник:</span><span>${player.skillBow} ур.</span></div>
+            <div class="stat-row"><span>🔮 Маг:</span><span>${player.skillStaff} ур.</span></div>
+            <div class="stat-row"><span>🛡️ Защита:</span><span>${player.skillDefense} ур.</span></div>
+        `;
+        document.getElementById('settingsModal').style.display = 'flex';
+    }
+    
+    function closeSettings() {
+        document.getElementById('settingsModal').style.display = 'none';
     }
     
     function gameLoop() {
         moveToTarget();
         moveMonsters();
-        
-        // Запускаем атаку для монстров рядом
         for (let m of monsters) {
             let dist = Math.abs(player.x - m.x) + Math.abs(player.y - m.y);
-            if (dist <= 1.5) {
-                startMonsterAttack(m);
-            }
+            if (dist <= 1.5) startMonsterAttack(m);
         }
-        
         drawGame();
         requestAnimationFrame(gameLoop);
     }
     
     function startGame() {
         generateMap();
-        for(let i = 0; i < 7; i++) spawnMonster();
+        for(let i = 0; i < 6; i++) spawnMonster();
         canvas.addEventListener('click', handleCanvasClick);
         canvas.addEventListener('touchstart', (e)=>{ e.preventDefault(); handleCanvasClick(e); });
         window.addEventListener('resize', resizeCanvas);
@@ -920,16 +876,16 @@
         document.getElementById('btnStaff').onclick = ()=>changeClass('staff');
         document.getElementById('healBtn').onclick = heal;
         document.getElementById('saveBtn').onclick = saveGame;
-        document.getElementById('settingsBtn').onclick = openSettings;
+        document.getElementById('playerNameDisplay').onclick = openSettings;
         
-        setInterval(()=> { if(monsters.length < 8) spawnMonster(); }, 8000);
+        setInterval(()=> { if(monsters.length < 7) spawnMonster(); }, 7000);
         setInterval(()=> saveGame(), 30000);
         window.addEventListener('beforeunload', ()=>saveGame());
         
         resizeCanvas();
         gameLoop();
         updateUI();
-        showToast(`📊 Уровень ${player.level}, опыт ${player.exp}/${player.level*80}`);
+        showToast(`⚔️ Добро пожаловать, ${player.name}! Уровень ${player.level}`);
     }
     
     function login() {
@@ -937,16 +893,10 @@
         if (!name) { alert("Введите имя!"); return; }
         player.name = name;
         player.id = name.toLowerCase().replace(/[^a-z0-9]/g,'_');
-        
-        // Сбрасываем позицию и состояние
-        player.x = 12;
-        player.y = 9;
-        player.targetX = 12;
-        player.targetY = 9;
+        player.x = 12; player.y = 9;
+        player.targetX = 12; player.targetY = 9;
         player.moving = false;
         player.hp = player.maxHp;
-        
-        // Очищаем старых монстров
         monsters = [];
         
         if (!loadGame(player.id)) {
@@ -962,10 +912,8 @@
     function guestLogin() {
         player.name = "Гость_" + Math.floor(Math.random()*9999);
         player.id = "guest_"+Date.now();
-        player.x = 12;
-        player.y = 9;
-        player.targetX = 12;
-        player.targetY = 9;
+        player.x = 12; player.y = 9;
+        player.targetX = 12; player.targetY = 9;
         player.moving = false;
         player.hp = player.maxHp;
         monsters = [];
