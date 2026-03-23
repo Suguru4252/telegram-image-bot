@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Rucoy Online - Полная версия</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            user-select: none;
+        }
+        
+        body {
+            background: #0a0c15;
+            overflow: hidden;
+            font-family: 'Courier New', 'Monaco', monospace;
+        }
+        
+        #gameCanvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            cursor: crosshair;
+            display: block;
+        }
+        
+        /* Загрузочный экран */
+        #loadingScreen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: #0a0c15;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            transition: opacity 0.5s;
+        }
+        
+        .loader {
+            text-align: center;
+        }
+        
+        .loader h1 {
+            color: #ffd966;
+            font-size: 48px;
+            margin-bottom: 20px;
+            text-shadow: 0 0 10px rgba(255,217,102,0.5);
+        }
+        
+        .loader p {
+            color: #ffffff;
+            font-size: 18px;
+            margin-top: 20px;
+        }
+        
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 4px solid #ffd966;
+            border-top-color: transparent;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 20px auto;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        /* Консоль разработчика */
+        #devConsole {
+            position: fixed;
+            bottom: 10px;
+            right: 10px;
+            background: rgba(0,0,0,0.7);
+            color: #0f0;
+            font-family: monospace;
+            font-size: 10px;
+            padding: 5px 10px;
+            border-radius: 5px;
+            z-index: 100;
+            pointer-events: none;
+        }
+        
+        /* Мобильные подсказки */
+        @media (max-width: 768px) {
+            .mobile-controls {
+                display: block;
+            }
+        }
+        
+        .mobile-controls {
+            display: none;
+            position: fixed;
+            bottom: 20px;
+            left: 20px;
+            right: 20px;
+            z-index: 200;
+            pointer-events: none;
+        }
+        
+        .mobile-controls button {
+            pointer-events: auto;
+            background: rgba(0,0,0,0.7);
+            border: 1px solid #ffd966;
+            color: #ffd966;
+            width: 50px;
+            height: 50px;
+            border-radius: 25px;
+            font-size: 24px;
+            margin: 5px;
+        }
+        
+        /* FPS счетчик */
+        #fpsCounter {
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            background: rgba(0,0,0,0.5);
+            color: #0f0;
+            font-family: monospace;
+            font-size: 12px;
+            padding: 2px 6px;
+            border-radius: 4px;
+            z-index: 100;
+            pointer-events: none;
+        }
+    </style>
+</head>
+<body>
+    <div id="loadingScreen">
+        <div class="loader">
+            <h1>⚔️ RUCOY ONLINE ⚔️</h1>
+            <div class="spinner"></div>
+            <p>Загрузка мира...</p>
+            <p id="loadProgress" style="font-size: 12px; color: #ffd966;">0%</p>
+        </div>
+    </div>
+    
+    <canvas id="gameCanvas"></canvas>
+    
+    <div id="fpsCounter">FPS: --</div>
+    <div id="devConsole">Dev Console | F12 для открытия</div>
+    
+    <div class="mobile-controls">
+        <button id="moveUp">▲</button>
+        <button id="moveLeft">◀</button>
+        <button id="moveDown">▼</button>
+        <button id="moveRight">▶</button>
+        <button id="attackBtn">⚔️</button>
+        <button id="healBtnMobile">💊</button>
+    </div>
+    
+    <!-- Подключение модулей -->
+    <script src="js/engine/core.js"></script>
+    <script src="js/engine/renderer.js"></script>
+    <script src="js/game/player.js"></script>
+    <script src="js/game/monsters.js"></script>
+    <script src="js/game/items.js"></script>
+    <script src="js/game/skills.js"></script>
+    <script src="js/world/map.js"></script>
+    <script src="js/ui/hud.js"></script>
+    <script src="js/network/socket.js"></script>
+    <script src="js/main.js"></script>
+    
+    <script>
+        // FPS счетчик
+        let frameCount = 0;
+        let lastTime = performance.now();
+        
+        function updateFPS() {
+            frameCount++;
+            const now = performance.now();
+            if (now - lastTime >= 1000) {
+                const fps = frameCount;
+                document.getElementById('fpsCounter').textContent = `FPS: ${fps}`;
+                frameCount = 0;
+                lastTime = now;
+            }
+            requestAnimationFrame(updateFPS);
+        }
+        
+        updateFPS();
+        
+        // Скрытие загрузочного экрана
+        window.addEventListener('load', () => {
+            setTimeout(() => {
+                const loadingScreen = document.getElementById('loadingScreen');
+                loadingScreen.style.opacity = '0';
+                setTimeout(() => {
+                    loadingScreen.style.display = 'none';
+                }, 500);
+            }, 1500);
+        });
+        
+        // Мобильные элементы управления
+        if ('ontouchstart' in window) {
+            document.querySelector('.mobile-controls').style.display = 'flex';
+            document.querySelector('.mobile-controls').style.justifyContent = 'center';
+            
+            document.getElementById('moveUp').addEventListener('touchstart', () => {
+                if (window.RucoyGame && window.RucoyGame.player) {
+                    window.RucoyGame.player.moveTo(
+                        window.RucoyGame.player.x,
+                        window.RucoyGame.player.y - 50
+                    );
+                }
+            });
+            
+            document.getElementById('moveDown').addEventListener('touchstart', () => {
+                if (window.RucoyGame && window.RucoyGame.player) {
+                    window.RucoyGame.player.moveTo(
+                        window.RucoyGame.player.x,
+                        window.RucoyGame.player.y + 50
+                    );
+                }
+            });
+            
+            document.getElementById('moveLeft').addEventListener('touchstart', () => {
+                if (window.RucoyGame && window.RucoyGame.player) {
+                    window.RucoyGame.player.moveTo(
+                        window.RucoyGame.player.x - 50,
+                        window.RucoyGame.player.y
+                    );
+                }
+            });
+            
+            document.getElementById('moveRight').addEventListener('touchstart', () => {
+                if (window.RucoyGame && window.RucoyGame.player) {
+                    window.RucoyGame.player.moveTo(
+                        window.RucoyGame.player.x + 50,
+                        window.RucoyGame.player.y
+                    );
+                }
+            });
+            
+            document.getElementById('attackBtn').addEventListener('touchstart', () => {
+                if (window.RucoyGame && window.RucoyGame.player && window.RucoyGame.monsters.length > 0) {
+                    const nearest = window.RucoyGame.monsters
+                        .filter(m => m.alive)
+                        .sort((a, b) => {
+                            const da = Math.hypot(a.x - window.RucoyGame.player.x, a.y - window.RucoyGame.player.y);
+                            const db = Math.hypot(b.x - window.RucoyGame.player.x, b.y - window.RucoyGame.player.y);
+                            return da - db;
+                        })[0];
+                    if (nearest) {
+                        window.RucoyGame.player.attack(nearest);
+                    }
+                }
+            });
+            
+            document.getElementById('healBtnMobile').addEventListener('touchstart', () => {
+                if (window.RucoyGame && window.RucoyGame.player) {
+                    const healAmount = Math.floor(window.RucoyGame.player.maxHp * 0.3);
+                    window.RucoyGame.player.hp = Math.min(window.RucoyGame.player.maxHp, window.RucoyGame.player.hp + healAmount);
+                }
+            });
+        }
+        
+        // Консольные команды
+        console.log('%c⚔️ RUCOY ONLINE CLONE v1.0.0 ⚔️', 'color: #ffd966; font-size: 16px; font-weight: bold;');
+        console.log('%cДоступные команды:', 'color: #88ff88;');
+        console.log('  gameCommands.heal() - лечение');
+        console.log('  gameCommands.levelUp() - повысить уровень');
+        console.log('  gameCommands.spawnMonster("dragon") - призвать монстра');
+        console.log('  gameCommands.giveGold(1000) - дать золото');
+        console.log('  gameCommands.giveItem("dragon_sword") - дать предмет');
+        console.log('  saveGame() - сохранить');
+        console.log('  loadGame() - загрузить');
+        console.log('%cПриятной игры!', 'color: #ffd966;');
+    </script>
+</body>
+</html>
